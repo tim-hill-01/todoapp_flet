@@ -1,10 +1,11 @@
 import flet as ft
 import database as db  # Importiere unser Backend
+from datetime import datetime
 
 def main(page: ft.Page):
     page.title = "Meine ToDo App (SQLite)"
-    page.window_width = 450
-    page.window_height = 600
+    page.window_width = 500
+    page.window_height = 700
     page.theme_mode = ft.ThemeMode.LIGHT
 
     # --- Container für die Aufgabenliste ---
@@ -21,23 +22,28 @@ def main(page: ft.Page):
         
         # 3. Für jeden Datensatz ein UI-Element bauen
         for task in tasks:
-            task_id = task[0]
-            task_title = task[1]
-            is_completed = bool(task[2])
+            # Zugriff jetzt über Spaltennamen möglich (dank row_factory in database.py)
+            t_id = task['id']
+            t_title = task['title']
+            t_status = task['status']
+            t_prio = task['priority']
 
-            # Wir bauen eine Row (Zeile) für jeden Task: [Checkbox] [Lösch-Button]
+            # Checkbox (dient aktuell nur der Optik, Status-Logik kommt später)
+            # Wir prüfen: Ist Status 'Final' oder 'Cancelled'?
+            is_done = t_status in ['Final', 'Cancelled']
+
             # WICHTIG: Wir nutzen Lambda-Funktionen, um die ID an den Event-Handler zu übergeben
             checkbox = ft.Checkbox(
-                label=task_title, 
-                value=is_completed,
-                on_change=lambda e, id=task_id, status=is_completed: status_changed(id, status)
+                label=f"{t_title} (Prio: {t_prio})", 
+                value=is_done,
+                on_change=lambda e, id=t_id: print("Status ändern bauen wir noch!") 
             )
             
-            # Button (Jetzt funktioniert die Standard-Schreibweise wieder!)
+            # Löschen Button
             delete_btn = ft.IconButton(
-                icon=ft.icons.DELETE,  # Das hier geht in v0.25.2 sicher
+                icon=ft.icons.DELETE,
                 icon_color="red",
-                on_click=lambda e, id=task_id: delete_clicked(id)
+                on_click=lambda e, id=t_id: delete_clicked(id)
             )
 
             row = ft.Row([checkbox, delete_btn], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
@@ -50,31 +56,40 @@ def main(page: ft.Page):
     def add_clicked(e):
         if not new_task_input.value:
             return
-        # In DB speichern
-        db.add_task(new_task_input.value)
-        # UI resetten
+        
+        # Hier nutzen wir jetzt die neue create_task Funktion mit vielen Parametern.
+        # Da wir im Quick-Add nur den Titel haben, füllen wir den Rest mit "Dummy"-Werten oder None.
+        db.create_task(
+            title=new_task_input.value,
+            description="",          # Leer
+            category="Inbox",        # Standard-Kategorie
+            task_type="Task",        # Standard-Typ
+            priority=3,              # Standard-Prio (Mittel)
+            start_date=datetime.now().isoformat(), # Heute
+            external_link=""
+        )
+        
         new_task_input.value = ""
         new_task_input.focus()
-        render_tasks() # Liste neu laden
+        render_tasks()
 
     def delete_clicked(task_id):
         db.delete_task(task_id)
         render_tasks()
 
-    def status_changed(task_id, current_status):
-        db.toggle_task(task_id, current_status)
-        render_tasks()
-
     # --- UI Aufbau ---
-    new_task_input = ft.TextField(hint_text="Neue Aufgabe...", expand=True, on_submit=add_clicked)
-    add_button = ft.FilledButton("Add", on_click=add_clicked)
+    new_task_input = ft.TextField(hint_text="Schnell-Erfassung (Nur Titel)", expand=True, on_submit=add_clicked)
+    add_button = ft.ElevatedButton("Add", on_click=add_clicked)
     
     input_row = ft.Row([new_task_input, add_button])
 
-    # Alles auf die Seite packen
-    page.add(input_row, ft.Divider(), tasks_view)
+    page.add(
+        ft.Text("Projekt Cockpit", size=24, weight="bold"),
+        input_row, 
+        ft.Divider(), 
+        tasks_view
+    )
 
-    # Initiale Ladung der Daten beim Start
     render_tasks()
 
 if __name__ == "__main__":
