@@ -121,5 +121,21 @@ def delete_task(task_id):
     with conn:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
+def update_task_details(task_id, title, description, category, task_type, priority, effort_planned, external_link, status):
+    """Aktualisiert alle Stammdaten einer Aufgabe."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    sql = """
+    UPDATE tasks 
+    SET title=?, description=?, category=?, task_type=?, priority=?, effort_planned=?, external_link=?, status=?
+    WHERE id=?
+    """
+    # Wichtig: Die Reihenfolge der Variablen muss exakt den ? im SQL entsprechen
+    cursor.execute(sql, (title, description, category, task_type, priority, effort_planned, external_link, status, task_id))
+    
+    conn.commit()
+    conn.close()        
+
 # Init ausführen
 init_db()
