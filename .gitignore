@@ -2,3 +2,4 @@
 *.db
 build/
 dist/
+__pychache__/
